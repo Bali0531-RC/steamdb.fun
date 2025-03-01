@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Database Explorer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --dark-bg: #1c1e21;
+            --darker-bg: #161819;
+            --card-bg: #272b30;
+            --border-color: #444;
+            --highlight: #007bff;
+            --highlight-hover: #0056b3;
+            --text-primary: #eaeaea;
+            --text-secondary: #adb5bd;
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Text color overrides for better visibility */
+        body, p, span, div, a, h1, h2, h3, h4, h5, h6, label, button, input, select, textarea, th, td {
+            color: var(--text-primary);
+        }
+        
+        /* Make sure form elements have visible text */
+        .form-control, .form-select, option {
+            color: var(--text-primary) !important;
+        }
+        
+        /* Make form placeholder text more visible */
+        ::placeholder {
+            color: #999 !important;
+            opacity: 1;
+        }
+        
+        /* Ensure secondary text is not too dark */
+        .text-muted, .text-secondary, .small, small {
+            color: #adb5bd !important;
+        }
+        
+        /* Fix form select arrow color */
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23eaeaea' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !important;
+        }
+        
+        /* Make active nav-links more visible */
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white;
+        }
+        
+        /* Make buttons and badges stand out better */
+        .badge {
+            color: white;
+        }
+        
+        .navbar {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            color: white;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: rgba(0,0,0,0.15);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+        
+        .form-control, .form-select {
+            background-color: #333;
+            border-color: var(--border-color);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background-color: #3a3a3a;
+            border-color: var(--highlight);
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+        }
+        
+        .form-select.games, .form-select.countries {
+            height: 200px;
+        }
+        
+        .form-label {
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background-color: var(--highlight);
+            border-color: var(--highlight);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--highlight-hover);
+            border-color: var(--highlight-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        table {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        table thead {
+            background-color: rgba(0,0,0,0.2);
+        }
+        
+        table th {
+            font-weight: 600;
+            border-color: var(--border-color);
+            padding: 12px 15px;
+        }
+        
+        table td {
+            border-color: var(--border-color);
+            padding: 12px 15px;
+        }
+        
+        table tbody tr {
+            transition: background-color 0.2s;
+        }
+        
+        table tbody tr:hover {
+            background-color: rgba(255,255,255,0.05);
+            color: var(--text-primary) !important;
+        }
+        table tbody tr:hover td,
+        table tbody tr:hover th,
+        table tbody tr:hover a,
+        table tbody tr:hover button,
+        table tbody tr:hover span {
+            color: var(--text-primary) !important;
+        }
+        .stats-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+            height: 100%;
+            border: 1px solid var(--border-color);
+        }
+        
+            /* Game list button */
+        .game-list-btn {
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .game-list-btn:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        /* Modal styles to match dark theme */
+        .modal-content {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .modal-header, .modal-footer {
+            border-color: var(--border-color);
+        }
+        
+        .list-group-item {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        
+        /* Style for game list */
+        .game-list .list-group-item:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
+        /* Button close styling */
+        .btn-close-white {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        .bg-primary, tr.bg-primary, tr.bg-primary td, tr.bg-primary th {
+            color: var(--text-primary) !important;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+        }
+        
+        .stats-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--highlight);
+            margin: 10px 0;
+        }
+        
+        .stats-card .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stats-card i {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: var(--highlight);
+        }
+        
+        footer {
+            margin-top: 50px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .page-title {
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table-responsive {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        option {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+        }
+        
+        /* Fix for any other potentially invisible text */
+        .alert-info {
+            background-color: rgba(23, 162, 184, 0.2);
+            border-color: rgba(23, 162, 184, 0.3);
+            color: #a8e4ef;
+        }
+        
+        /* Dark scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #2c3035;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+        
+        /* Fix dropdown menus if any */
+        .dropdown-menu {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+        }
+        
+        .dropdown-item {
+            color: var(--text-primary);
+        }
+        
+        .dropdown-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        /* Make modal content visible if used */
+        .modal-content {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        
+        .modal-header, .modal-footer {
+            border-color: var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('search') }}">
+                <i class="bi bi-steam me-2"></i>Steam Database
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('search') }}">
+                            <i class="bi bi-search me-1"></i> Search
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('my_tickets') }}">
+                            <i class="bi bi-ticket-perforated me-1"></i> My Tickets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('users_directory') }}">
+                            <i class="bi bi-people-fill me-1"></i> Users
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <a href="{{ url_for('profile') }}" class="navbar-text me-3" style="text-decoration:none;">
+                        <i class="bi bi-person-circle me-1"></i> {{ session.username }}
+                    </a>
+                    <a class="btn btn-sm btn-outline-light" href="{{ url_for('logout') }}">
+                        <i class="bi bi-box-arrow-right me-1"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="page-title">
+            <h1><i class="bi bi-database me-2"></i> Database Explorer</h1>
+            <p class="text-secondary">Filter and search through Steam accounts database</p>
+        </div>
+
+        <div class="row">
+            <!-- Filter Form -->
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-funnel me-2"></i> Filter Options
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('search') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="mb-3">
+                                <label for="games" class="form-label">
+                                    <i class="bi bi-joystick me-1"></i> Games
+                                </label>
+                                <select name="games" id="games" class="form-select games" multiple>
+                                    {% for game in games %}
+                                    <option value="{{ game }}">{{ game }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Hold Ctrl to select multiple items</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="countries" class="form-label">
+                                    <i class="bi bi-globe me-1"></i> Countries
+                                </label>
+                                <select name="countries" id="countries" class="form-select countries" multiple>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}">{{ country }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Hold Ctrl to select multiple items</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="min_balance" class="form-label">
+                                    <i class="bi bi-currency-dollar me-1"></i> Minimum Balance
+                                </label>
+                                <input type="number" name="min_balance" id="min_balance" class="form-control" placeholder="Enter minimum balance">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="max_balance" class="form-label">
+                                    <i class="bi bi-currency-dollar me-1"></i> Maximum Balance
+                                </label>
+                                <input type="number" name="max_balance" id="max_balance" class="form-control" placeholder="Enter maximum balance">
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search me-2"></i> Search Accounts
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results -->
+            <div class="col-lg-8">
+                <!-- Stats Row -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <i class="bi bi-people"></i>
+                            <div class="stat-value">{{ account_count }}</div>
+                            <div class="stat-label">Total Accounts</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <i class="bi bi-controller"></i>
+                            <div class="stat-value">{{ games | length }}</div>
+                            <div class="stat-label">Unique Games</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <i class="bi bi-cash-stack"></i>
+                            <div class="stat-value" id="totalBalanceDisplay">{{ total_balance }}</div>
+                            <div class="stat-label">Total Balance</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Results Table -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-table me-2"></i> Search Results</span>
+                        <span class="badge bg-primary">{{ filtered_data|length }} accounts found</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table id="dataTable" class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th><i class="bi bi-person me-1"></i> Username</th>
+                                        <th><i class="bi bi-key me-1"></i> Password</th>
+                                        <th><i class="bi bi-globe me-1"></i> Country</th>
+                                        <th><i class="bi bi-cash me-1"></i> Balance</th>
+                                        <th><i class="bi bi-controller me-1"></i> Games</th>
+                                        <th><i class="bi bi-clock-history me-1"></i> Last Active</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in filtered_data %}
+                                    <tr>
+                                        <td>{{ row[1] }}</td>
+                                        <td>{{ row[2] }}</td>
+                                        <td>{{ row[11] }}</td>
+                                        <td>{{ row[9] }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-secondary game-list-btn" data-games="{{ row[12] }}">
+                                                <i class="bi bi-controller me-1"></i>
+                                                {{ (row[12].split('|') | length) }} games
+                                            </button>
+                                        </td>
+                                        <td>{{ row[10] }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if not filtered_data %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <i class="bi bi-search me-2"></i> No accounts match your search criteria
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-5">
+            <p>© 2025 Steam Database Explorer. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Currency mapping based on country codes
+        const currencyMap = {
+            'US': '$',    // United States
+            'CA': 'CA$',  // Canada
+            'GB': '£',    // United Kingdom
+            'EU': '€',    // European Union
+            'DE': '€',    // Germany
+            'FR': '€',    // France
+            'IT': '€',    // Italy
+            'ES': '€',    // Spain
+            'NL': '€',    // Netherlands
+            'BE': '€',    // Belgium
+            'AU': 'A$',   // Australia
+            'NZ': 'NZ$',  // New Zealand
+            'JP': '¥',    // Japan
+            'CN': '¥',    // China
+            'RU': '₽',    // Russia
+            'IN': '₹',    // India
+            'BR': 'R$',   // Brazil
+            'PL': 'zł',   // Poland
+            'SE': 'kr',   // Sweden
+            'NO': 'kr',   // Norway
+            'DK': 'kr',   // Denmark
+            'CH': 'CHF',  // Switzerland
+            'MX': 'Mex$', // Mexico
+            'KR': '₩',    // South Korea
+            'TR': '₺',    // Turkey
+            'UA': '₴',    // Ukraine
+            'HU': 'Ft',   // Hungary
+            'CZ': 'Kč',   // Czech Republic
+            'ZA': 'R'     // South Africa
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the modal element
+            const gamesModal = document.getElementById('gamesModal');
+            const gamesList = document.getElementById('gamesList');
+            const modalTitle = document.getElementById('gamesModalLabel');
+            
+            // Add click event for all game list buttons
+            document.querySelectorAll('.game-list-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent row click event from firing
+                    
+                    // Get the games list from the button's data attribute
+                    const gamesString = this.getAttribute('data-games');
+                    // Split by pipe instead of comma
+                    const games = gamesString.split('|').map(game => game.trim()).filter(game => game);
+                    
+                    // Get the username from this row
+                    const username = this.closest('tr').cells[0].textContent.trim();
+                    
+                    // Update modal title with username
+                    modalTitle.textContent = `${username}'s Game Library (${games.length} games)`;
+                    
+                    // Clear previous list
+                    gamesList.innerHTML = '';
+                    
+                    // Add each game to the list
+                    if (games.length > 0) {
+                        games.sort().forEach(game => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item';
+                            li.textContent = game;
+                            gamesList.appendChild(li);
+                        });
+                    } else {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item text-center';
+                        li.textContent = 'No games found';
+                        gamesList.appendChild(li);
+                    }
+                    
+                    // Open the modal
+                    const bsModal = new bootstrap.Modal(gamesModal);
+                    bsModal.show();
+                });
+            });
+        });
+
+
+        // Format balances with correct currency symbols
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get all balance cells
+            const rows = document.querySelectorAll('#dataTable tbody tr');
+            let mostFrequentCurrency = '$'; // Default to USD
+            let currencyCounts = {};
+            
+            // Count currencies to find the most common one
+            rows.forEach(row => {
+                if (row.cells.length < 4) return;
+                
+                const countryCell = row.cells[2];
+                if (countryCell) {
+                    const countryCode = countryCell.textContent.trim();
+                    const currencySymbol = currencyMap[countryCode] || '$';
+                    
+                    // Count frequency of each currency
+                    currencyCounts[currencySymbol] = (currencyCounts[currencySymbol] || 0) + 1;
+                }
+            });
+                
+                    // Find most frequently used currency
+            let maxCount = 0;
+            for (const [currency, count] of Object.entries(currencyCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostFrequentCurrency = currency;
+                }
+            }
+            
+            // Format the total balance with most common currency and remove .00
+            const totalBalanceElement = document.getElementById('totalBalanceDisplay');
+            if (totalBalanceElement) {
+                let balanceText = totalBalanceElement.textContent.trim();
+                
+                // Remove all decimal parts (everything after the period)
+                if (balanceText.includes('.')) {
+                    balanceText = balanceText.split('.')[0];
+                }
+                
+                // Add the currency symbol
+                totalBalanceElement.textContent = mostFrequentCurrency + balanceText;
+            }
+            
+            // Format individual balances
+            rows.forEach(row => {
+                if (row.cells.length < 4) return; // Skip rows without enough cells
+                
+                const countryCell = row.cells[2];
+                const balanceCell = row.cells[3];
+                
+                if (countryCell && balanceCell) {
+                    const countryCode = countryCell.textContent.trim();
+                    const balanceValue = balanceCell.textContent.trim();
+                    
+                    // Get the appropriate currency symbol
+                    const currencySymbol = currencyMap[countryCode] || '$';
+                    
+                    // Remove all decimal parts (everything after the period)
+                    let formattedValue = balanceValue;
+                    if (formattedValue.includes('.')) {
+                        formattedValue = formattedValue.split('.')[0];
+                    }
+                    
+                    // Update the balance cell with the formatted value
+                    balanceCell.textContent = currencySymbol + formattedValue;
+                }
+            });
+        });
+        
+        // Add smooth scrolling for results
+        document.querySelector('.btn-primary')?.addEventListener('click', function() {
+            if (window.innerWidth < 992) { // Only on mobile view
+                setTimeout(() => {
+                    document.querySelector('#dataTable').scrollIntoView({ 
+                        behavior: 'smooth' 
+                    });
+                }, 500);
+            }
+        });
+        
+        // Make table rows clickable to show full details
+        document.querySelectorAll('#dataTable tbody tr').forEach(row => {
+            if (row.cells.length > 1) {  // Skip the "no results" row
+                row.style.cursor = 'pointer';
+                row.addEventListener('click', function() {
+                    // You could implement a modal to show full account details here
+                    // For now, just add a simple highlight effect
+                    this.classList.toggle('bg-primary');
+                    setTimeout(() => {
+                        this.classList.toggle('bg-primary');
+                    }, 200);
+                });
+            }
+        });
+    </script>
+
+    <div class="modal fade" id="gamesModal" tabindex="-1" aria-labelledby="gamesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gamesModalLabel">Game Library</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group game-list" id="gamesList">
+                        <!-- Games will be inserted here via JavaScript -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

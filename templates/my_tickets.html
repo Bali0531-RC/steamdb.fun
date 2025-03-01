@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Support Tickets - Steam Database</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --dark-bg: #1c1e21;
+      --darker-bg: #161819;
+      --card-bg: #272b30;
+      --border-color: #444;
+      --highlight: #007bff;
+      --highlight-hover: #0056b3;
+      --text-primary: #eaeaea;
+      --text-secondary: #adb5bd;
+    }
+    
+    body {
+      background-color: var(--dark-bg);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+    
+    /* Text color overrides for better visibility */
+    body, p, span, div, a, h1, h2, h3, h4, h5, h6, label, button, input, select, textarea, th, td {
+      color: var(--text-primary);
+    }
+    
+    .navbar {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .navbar-brand {
+      font-weight: 600;
+      color: white;
+    }
+    
+    /* Make active nav-links more visible */
+    .nav-link {
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .nav-link:hover, .nav-link.active {
+      color: white;
+    }
+    
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      margin-bottom: 20px;
+      transition: transform 0.2s;
+    }
+    
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    }
+    
+    .card-header {
+      background-color: rgba(0,0,0,0.15);
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+    }
+    
+    .page-title {
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.35em 0.65em;
+      font-weight: 600;
+    }
+    
+    .badge.bg-danger {
+      background-color: #dc3545;
+    }
+    
+    .badge.bg-warning {
+      background-color: #fd7e14;
+    }
+    
+    .badge.bg-success {
+      background-color: #198754;
+    }
+    
+    .nav-tabs {
+      border-bottom-color: var(--border-color);
+    }
+    
+    .nav-tabs .nav-link {
+      color: var(--text-secondary);
+      border-radius: 6px 6px 0 0;
+      font-weight: 500;
+      padding: 0.75rem 1.25rem;
+      transition: all 0.2s;
+    }
+    
+    .nav-tabs .nav-link:hover {
+      border-color: var(--border-color);
+      color: white;
+      background-color: rgba(255,255,255,0.05);
+    }
+    
+    .nav-tabs .nav-link.active {
+      background-color: var(--card-bg);
+      border-color: var(--border-color) var(--border-color) var(--card-bg);
+      color: white;
+      font-weight: 600;
+    }
+    
+    .btn-primary {
+      background-color: var(--highlight);
+      border-color: var(--highlight);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--highlight-hover);
+      border-color: var(--highlight-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .btn-outline-info {
+      border-color: #0dcaf0;
+      color: #0dcaf0;
+      transition: all 0.2s;
+    }
+    
+    .btn-outline-info:hover {
+      background-color: #0dcaf0;
+      color: #000;
+    }
+    
+    .text-muted {
+      color: var(--text-secondary) !important;
+    }
+    
+    .admin-notes {
+      background-color: rgba(33, 37, 41, 0.8);
+      border-left: 3px solid #0d6efd;
+      padding: 0.75rem;
+      margin-top: 1rem;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .alert-info {
+      background-color: rgba(13, 202, 240, 0.15);
+      border-color: rgba(13, 202, 240, 0.3);
+      color: #a8e4ef;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('search') }}">
+        <i class="bi bi-steam me-2"></i>Steam Database
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('search') }}">
+              <i class="bi bi-search me-1"></i> Search
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="{{ url_for('my_tickets') }}">
+              <i class="bi bi-ticket-perforated me-1"></i> My Tickets
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('users_directory') }}">
+                <i class="bi bi-people-fill me-1"></i> Users
+            </a>
+          </li>
+        </ul>
+        <div class="d-flex align-items-center">
+          <a href="{{ url_for('profile') }}" class="navbar-text me-3" style="text-decoration:none;">
+              <i class="bi bi-person-circle me-1"></i> {{ session.username }}
+          </a>
+          <a class="btn btn-sm btn-outline-light" href="{{ url_for('logout') }}">
+              <i class="bi bi-box-arrow-right me-1"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-title d-flex justify-content-between align-items-center">
+      <h1><i class="bi bi-headset me-2"></i> My Support Tickets</h1>
+      <a href="{{ url_for('support') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> New Support Request
+      </a>
+    </div>
+
+    {% if tickets %}
+      <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+          <a class="nav-link active" id="all-tickets-tab" data-bs-toggle="tab" href="#all-tickets">
+            <i class="bi bi-list-ul me-1"></i> All Tickets <span class="badge bg-secondary ms-1">{{ tickets|length }}</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="open-tickets-tab" data-bs-toggle="tab" href="#open-tickets">
+            <i class="bi bi-exclamation-circle me-1"></i> Open <span class="badge bg-danger ms-1">{{ tickets|selectattr('status', 'equalto', 'open')|list|length }}</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="in-progress-tickets-tab" data-bs-toggle="tab" href="#in-progress-tickets">
+            <i class="bi bi-hourglass-split me-1"></i> In Progress <span class="badge bg-warning ms-1">{{ tickets|selectattr('status', 'equalto', 'in_progress')|list|length }}</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="closed-tickets-tab" data-bs-toggle="tab" href="#closed-tickets">
+            <i class="bi bi-check-circle me-1"></i> Closed <span class="badge bg-success ms-1">{{ tickets|selectattr('status', 'equalto', 'closed')|list|length }}</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="all-tickets">
+          {% for ticket in tickets %}
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                  <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="text-decoration-none text-light">
+                    <i class="bi bi-ticket-detailed me-1"></i> {{ ticket.issue_type }} Issue - Ticket #{{ ticket.id }}
+                  </a>
+                </h5>
+                <span class="badge bg-{{ status_classes[ticket.status] }}">
+                  {% if ticket.status == 'open' %}
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                  {% elif ticket.status == 'in_progress' %}
+                    <i class="bi bi-hourglass-split me-1"></i>
+                  {% elif ticket.status == 'closed' %}
+                    <i class="bi bi-check-circle me-1"></i>
+                  {% endif %}
+                  {{ ticket.status|replace('_', ' ')|title }}
+                </span>
+              </div>
+              <div class="card-body">
+                <p>{{ ticket.description|truncate(150) }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                  <small class="text-muted">
+                    {% if ticket.updated_at %}
+                      <i class="bi bi-clock-history me-1"></i> Updated on {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                      <i class="bi bi-calendar-event me-1"></i> Submitted on {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    {% endif %}
+                  </small>
+                  <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye me-1"></i> View Details
+                  </a>
+                </div>
+                
+                {% if ticket.admin_notes %}
+                  <div class="admin-notes">
+                    <small><i class="bi bi-person-badge me-1"></i> <strong>Admin Response:</strong> {{ ticket.admin_notes|truncate(100) }}</small>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        
+        <div class="tab-pane fade" id="open-tickets">
+          {% set open_tickets = tickets|selectattr('status', 'equalto', 'open')|list %}
+          {% if open_tickets %}
+            {% for ticket in open_tickets %}
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="text-decoration-none text-light">
+                      <i class="bi bi-ticket-detailed me-1"></i> {{ ticket.issue_type }} Issue - Ticket #{{ ticket.id }}
+                    </a>
+                  </h5>
+                  <span class="badge bg-danger">
+                    <i class="bi bi-exclamation-circle me-1"></i> Open
+                  </span>
+                </div>
+                <div class="card-body">
+                  <p>{{ ticket.description|truncate(150) }}</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                      <i class="bi bi-calendar-event me-1"></i> Submitted on {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="btn btn-sm btn-outline-info">
+                      <i class="bi bi-eye me-1"></i> View Details
+                    </a>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle me-1"></i> You don't have any open tickets.
+            </div>
+          {% endif %}
+        </div>
+        
+        <div class="tab-pane fade" id="in-progress-tickets">
+          {% set in_progress_tickets = tickets|selectattr('status', 'equalto', 'in_progress')|list %}
+          {% if in_progress_tickets %}
+            {% for ticket in in_progress_tickets %}
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="text-decoration-none text-light">
+                      <i class="bi bi-ticket-detailed me-1"></i> {{ ticket.issue_type }} Issue - Ticket #{{ ticket.id }}
+                    </a>
+                  </h5>
+                  <span class="badge bg-warning">
+                    <i class="bi bi-hourglass-split me-1"></i> In Progress
+                  </span>
+                </div>
+                <div class="card-body">
+                  <p>{{ ticket.description|truncate(150) }}</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                      <i class="bi bi-clock-history me-1"></i> Updated on {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="btn btn-sm btn-outline-info">
+                      <i class="bi bi-eye me-1"></i> View Details
+                    </a>
+                  </div>
+                  
+                  {% if ticket.admin_notes %}
+                    <div class="admin-notes">
+                      <small><i class="bi bi-person-badge me-1"></i> <strong>Admin Response:</strong> {{ ticket.admin_notes|truncate(100) }}</small>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle me-1"></i> You don't have any tickets in progress.
+            </div>
+          {% endif %}
+        </div>
+        
+        <div class="tab-pane fade" id="closed-tickets">
+          {% set closed_tickets = tickets|selectattr('status', 'equalto', 'closed')|list %}
+          {% if closed_tickets %}
+            {% for ticket in closed_tickets %}
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="text-decoration-none text-light">
+                      <i class="bi bi-ticket-detailed me-1"></i> {{ ticket.issue_type }} Issue - Ticket #{{ ticket.id }}
+                    </a>
+                  </h5>
+                  <span class="badge bg-success">
+                    <i class="bi bi-check-circle me-1"></i> Closed
+                  </span>
+                </div>
+                <div class="card-body">
+                  <p>{{ ticket.description|truncate(150) }}</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                      <i class="bi bi-clock-history me-1"></i> Closed on {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </small>
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.id) }}" class="btn btn-sm btn-outline-info">
+                      <i class="bi bi-eye me-1"></i> View Details
+                    </a>
+                  </div>
+                  
+                  {% if ticket.admin_notes %}
+                    <div class="admin-notes">
+                      <small><i class="bi bi-person-badge me-1"></i> <strong>Admin Response:</strong> {{ ticket.admin_notes|truncate(100) }}</small>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle me-1"></i> You don't have any closed tickets.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i> You don't have any support tickets yet. Click "New Support Request" to create one.
+      </div>
+    {% endif %}
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Make tabs interactive
+    document.addEventListener('DOMContentLoaded', function() {
+      const tabLinks = document.querySelectorAll('.nav-link');
+      tabLinks.forEach(function(tabLink) {
+        tabLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute('href'));
+          
+          // Hide all tab panes
+          document.querySelectorAll('.tab-pane').forEach(function(pane) {
+            pane.classList.remove('show', 'active');
+          });
+          
+          // Remove active class from all tabs
+          tabLinks.forEach(function(link) {
+            link.classList.remove('active');
+          });
+          
+          // Show the selected tab pane
+          target.classList.add('show', 'active');
+          
+          // Set current tab as active
+          this.classList.add('active');
+        });
+      });
+    });
+  </script>
+</body>
+</html>
