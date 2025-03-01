@@ -1,0 +1,536 @@
+{% extends "admin/base.html" %}
+
+{% block title %}License Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">License Management</h1>
+    <div class="d-flex align-items-center">
+      <!-- Add search form here -->
+      <form class="d-flex me-2" action="{{ url_for('admin_search_license') }}" method="GET">
+        <select class="form-select form-select-sm bg-dark text-light me-2" name="type" style="max-width: 120px;">
+          <option value="key">License Key</option>
+          <option value="username">Username</option>
+          <option value="product">Product</option>
+        </select>
+        <input type="text" class="form-control form-control-sm me-2 bg-dark text-light" name="q" placeholder="Search...">
+        <button class="btn btn-sm btn-outline-light" type="submit">Search</button>
+      </form>
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLicenseModal">
+        <i class="bi bi-plus-circle"></i> Create License
+      </button>
+    </div>
+  </div>
+
+<div class="row mb-4">
+  <div class="col-md-6 mb-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5>License Overview</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+          <div>Active Licenses:</div>
+          <div><strong>{{ active_licenses }}</strong></div>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <div>Expired Licenses:</div>
+          <div><strong>{{ expired_licenses }}</strong></div>
+        </div>
+        <div class="d-flex justify-content-between">
+          <div>HWID Resets Available:</div>
+          <div><strong>Unlimited</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-6 mb-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between">
+        <h5>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkGenerateModal">
+            <i class="bi bi-key"></i> Bulk Generate Licenses
+          </button>
+          <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#searchLicenseModal">
+            <i class="bi bi-search"></i> Search Licenses
+          </button>
+          <button class="btn btn-outline-danger" id="clearExpiredBtn">
+            <i class="bi bi-trash"></i> Clear Expired Licenses
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- License Table -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5>Recent Licenses</h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-dark table-striped mb-0">
+        <thead>
+          <tr>
+            <th>License Key</th>
+            <th>Username</th>
+            <th>Product</th>
+            <th>Status</th>
+            <th>Last Used</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for license in licenses %}
+          <tr>
+            <td>{{ license.licensekey }}</td>
+            <td>{{ license.username }}</td>
+            <td>{{ license.product }}</td>
+            <td>
+              <span class="badge bg-{{ 'success' if license.active and (not license.expires_at or license.expires_at > now) else 'warning' if license.active and license.expires_at and license.expires_at < now else 'danger' }}">
+                {{ 'Active' if license.active and (not license.expires_at or license.expires_at > now) else 'Expired' if license.active and license.expires_at and license.expires_at < now else 'Inactive' }}
+              </span>
+            </td>
+            <td>{{ license.last_used.strftime('%Y-%m-%d %H:%M') if license.last_used else 'Never' }}</td>
+            <!-- Rest of the row remains the same -->
+            <td>
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-primary view-license" data-license-id="{{ license.id }}" data-bs-toggle="modal" data-bs-target="#viewLicenseModal">View</button>
+                <button type="button" class="btn btn-warning reset-hwid" data-license-id="{{ license.id }}">Reset HWID</button>
+                <button type="button" class="btn btn-danger delete-license" data-license-id="{{ license.id }}">Delete</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not licenses %}
+          <tr>
+            <td colspan="6" class="text-center">No licenses found</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create License Modal -->
+<div class="modal fade" id="createLicenseModal" tabindex="-1" aria-labelledby="createLicenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createLicenseModalLabel">Create New License</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="createLicenseForm" action="{{ url_for('admin_create_license') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="licenseProduct" class="form-label">Product</label>
+            <select class="form-select bg-dark text-light border-secondary" id="licenseProduct" name="product" required>
+              <option value="steamdatabase">Steam Database</option>
+              <option value="PlexTickets">Plex Tickets</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="licenseDuration" class="form-label">License Type</label>
+            <select class="form-select bg-dark text-light border-secondary" id="licenseDuration" name="license_type">
+              <option value="permanent">Permanent</option>
+              <option value="temporary">Temporary</option>
+            </select>
+          </div>
+          
+          <div class="mb-3 d-none" id="daysValidDiv">
+            <label for="daysValid" class="form-label">Valid for (days)</label>
+            <input type="number" class="form-control bg-dark text-light border-secondary" id="daysValid" name="days_valid" min="1" value="30">
+          </div>
+          
+          <div class="mb-3">
+            <label for="hwidLimit" class="form-label">HWID Limit</label>
+            <input type="number" class="form-control bg-dark text-light border-secondary" id="hwidLimit" name="hwid_limit" min="1" max="10" value="2">
+          </div>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control bg-dark text-light border-secondary" id="username" name="username" placeholder="Optional">
+          </div>
+          <div class="mb-3">
+            <label for="licenseGenType" class="form-label">Generation Type</label>
+            <select class="form-select bg-dark text-light border-secondary" id="licenseGenType" name="gen_type">
+              <option value="auto">Auto-Generate Key</option>
+              <option value="manual">Manual Entry</option>
+            </select>
+          </div>
+          <div class="mb-3 d-none" id="manualKeyDiv">
+            <label for="manualKey" class="form-label">License Key</label>
+            <input type="text" class="form-control bg-dark text-light border-secondary" id="manualKey" name="manual_key" placeholder="Format: XXXX-XXXX-XXXX-XXXX">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create License</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- View License Modal -->
+<div class="modal fade" id="viewLicenseModal" tabindex="-1" aria-labelledby="viewLicenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="viewLicenseModalLabel">License Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="licenseDetailsContainer">
+        <!-- Will be populated via AJAX -->
+        <div class="text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search License Modal -->
+<div class="modal fade" id="searchLicenseModal" tabindex="-1" aria-labelledby="searchLicenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="searchLicenseModalLabel">Search Licenses</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="searchLicenseForm" action="{{ url_for('admin_search_license') }}" method="GET">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="searchTerm" class="form-label">Search Term</label>
+            <input type="text" class="form-control bg-dark text-light border-secondary" id="searchTerm" name="q" placeholder="License key, username, or product">
+          </div>
+          <div class="mb-3">
+            <label for="searchType" class="form-label">Search By</label>
+            <select class="form-select bg-dark text-light border-secondary" id="searchType" name="type">
+              <option value="key">License Key</option>
+              <option value="username">Username</option>
+              <option value="product">Product</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Generate Modal -->
+<div class="modal fade" id="bulkGenerateModal" tabindex="-1" aria-labelledby="bulkGenerateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkGenerateModalLabel">Bulk Generate Licenses</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="bulkGenerateForm" action="{{ url_for('admin_bulk_licenses') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="bulkProduct" class="form-label">Product</label>
+            <select class="form-select bg-dark text-light border-secondary" id="bulkProduct" name="product" required>
+              <option value="steamdatabase">Steam Database</option>
+              <option value="PlexTickets">Plex Tickets</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="bulkLicenseDuration" class="form-label">License Type</label>
+            <select class="form-select bg-dark text-light border-secondary" id="bulkLicenseDuration" name="license_type">
+              <option value="permanent">Permanent</option>
+              <option value="temporary">Temporary</option>
+            </select>
+          </div>
+          <div class="mb-3 d-none" id="bulkDaysValidDiv">
+            <label for="bulkDaysValid" class="form-label">Valid for (days)</label>
+            <input type="number" class="form-control bg-dark text-light border-secondary" id="bulkDaysValid" name="days_valid" min="1" value="30">
+          </div>
+          <div class="mb-3">
+            <label for="bulkHwidLimit" class="form-label">HWID Limit</label>
+            <input type="number" class="form-control bg-dark text-light border-secondary" id="bulkHwidLimit" name="hwid_limit" min="1" max="10" value="2">
+          </div>
+          <div class="mb-3">
+            <label for="bulkCount" class="form-label">Number of Licenses</label>
+            <input type="number" class="form-control bg-dark text-light border-secondary" id="bulkCount" name="count" min="1" max="100" value="10">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Generate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Toggle days valid input based on license duration type
+  document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token
+    const csrfToken = "{{ csrf_token() }}";
+    
+    // Single license duration toggle
+    const licenseDuration = document.getElementById('licenseDuration');
+    const daysValidDiv = document.getElementById('daysValidDiv');
+    
+    if (licenseDuration) {
+      licenseDuration.addEventListener('change', function() {
+        if (this.value === 'temporary') {
+          daysValidDiv.classList.remove('d-none');
+        } else {
+          daysValidDiv.classList.add('d-none');
+        }
+      });
+    }
+    
+    // Bulk license duration toggle
+    const bulkLicenseDuration = document.getElementById('bulkLicenseDuration');
+    const bulkDaysValidDiv = document.getElementById('bulkDaysValidDiv');
+    
+    if (bulkLicenseDuration) {
+      bulkLicenseDuration.addEventListener('change', function() {
+        if (this.value === 'temporary') {
+          bulkDaysValidDiv.classList.remove('d-none');
+        } else {
+          bulkDaysValidDiv.classList.add('d-none');
+        }
+      });
+    }
+    
+    // Toggle manual key input based on generation type selection
+    const licenseGenType = document.getElementById('licenseGenType');
+    const manualKeyDiv = document.getElementById('manualKeyDiv');
+    
+    if (licenseGenType) {
+      licenseGenType.addEventListener('change', function() {
+        if (this.value === 'manual') {
+          manualKeyDiv.classList.remove('d-none');
+        } else {
+          manualKeyDiv.classList.add('d-none');
+        }
+      });
+    }
+    
+    // HWID reset functionality
+    document.querySelectorAll('.reset-hwid').forEach(button => {
+      button.addEventListener('click', function() {
+        const licenseId = this.getAttribute('data-license-id');
+        if (confirm('Are you sure you want to reset the HWID for this license?')) {
+          // Send AJAX request to reset HWID
+          fetch(`/admin/licenses/reset-hwid/${licenseId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ csrf_token: csrfToken })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('HWID reset successfully');
+            } else {
+              alert('Error: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while resetting HWID');
+          });
+        }
+      });
+    });
+    
+    // Delete license functionality
+    document.querySelectorAll('.delete-license').forEach(button => {
+      button.addEventListener('click', function() {
+        const licenseId = this.getAttribute('data-license-id');
+        if (confirm('Are you sure you want to delete this license? This action cannot be undone.')) {
+          // Send AJAX request to delete license
+          fetch(`/admin/licenses/delete/${licenseId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ csrf_token: csrfToken })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Remove the row from the table
+              this.closest('tr').remove();
+              alert('License deleted successfully');
+            } else {
+              alert('Error: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the license');
+          });
+        }
+      });
+    });
+    
+    // View license details functionality
+    document.querySelectorAll('.view-license').forEach(button => {
+      button.addEventListener('click', function() {
+        const licenseId = this.getAttribute('data-license-id');
+        const detailsContainer = document.getElementById('licenseDetailsContainer');
+        
+        // Reset and show loading spinner
+        detailsContainer.innerHTML = `
+          <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        `;
+        
+        // Fetch license details
+        fetch(`/admin/licenses/view/${licenseId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              const license = data.license;
+              let hwidsHtml = '';
+              
+              if (license.hwids && license.hwids.length > 0) {
+                hwidsHtml = '<h6 class="mt-4">Hardware IDs</h6><ul class="list-group">';
+                license.hwids.forEach(hwid => {
+                  hwidsHtml += `<li class="list-group-item bg-dark text-light">
+                    <div class="d-flex justify-content-between">
+                      <span>HWID: ${hwid.hwid}</span>
+                      <span>
+                        <small>First: ${hwid.first_used}</small> | 
+                        <small>Last: ${hwid.last_used}</small>
+                      </span>
+                    </div>
+                  </li>`;
+                });
+                hwidsHtml += '</ul>';
+              } else {
+                hwidsHtml = '<div class="alert alert-info mt-4">No hardware IDs registered yet</div>';
+              }
+              
+              // Update the license details modal HTML generation
+              detailsContainer.innerHTML = `
+                <div class="row">
+                  <div class="col-md-6">
+                    <p><strong>License Key:</strong> ${license.licensekey}</p>
+                    <p><strong>Product:</strong> ${license.product}</p>
+                    <p><strong>Username:</strong> ${license.username || '<span class="text-muted">Not assigned</span>'}</p>
+                    <p><strong>Status:</strong> 
+                      ${(() => {
+                        // Check if license is active AND not expired
+                        if (!license.active) {
+                          return '<span class="badge bg-danger">Inactive</span>';
+                        }
+                        
+                        // If license has an expiration date, check if it's expired
+                        if (license.expires_at) {
+                          // Parse the expiration date string to a Date object
+                          const expiryDate = new Date(license.expires_at);
+                          const now = new Date();
+                          
+                          if (expiryDate < now) {
+                            return '<span class="badge bg-warning">Expired</span>';
+                          }
+                        }
+                        
+                        // License is active and not expired
+                        return '<span class="badge bg-success">Active</span>';
+                      })()}
+                    </p>
+                    <p><strong>HWID Limit:</strong> ${license.hwid_limit || license.hwid_cap || '2'}</p>
+                  </div>
+                  <div class="col-md-6">
+                    <p><strong>Created:</strong> ${license.created_at}</p>
+                    <p><strong>Last Used:</strong> ${license.last_used || '<span class="text-muted">Never</span>'}</p>
+                    <p>
+                      <strong>License Type:</strong> 
+                      ${license.days_valid > 0 ? 
+                        `Temporary (${license.days_valid} days)` : 
+                        'Permanent'}
+                    </p>
+                    <p>
+                      <strong>Expires:</strong> 
+                      ${license.expires_at ? 
+                        `${license.expires_at} ${new Date(license.expires_at) < new Date() ? 
+                          '<span class="text-danger">(Expired)</span>' : 
+                          '<span class="text-muted">(Active)</span>'}` : 
+                        (license.days_valid > 0 ? 
+                          '<span class="text-warning">Not yet activated</span>' : 
+                          '<span class="text-muted">Never (Permanent)</span>')}
+                    </p>
+                    <p><strong>Created By:</strong> ${license.created_by || '<span class="text-muted">System</span>'}</p>
+                  </div>
+                </div>
+                ${hwidsHtml}
+              `;
+            } else {
+              detailsContainer.innerHTML = `<div class="alert alert-danger">Error: ${data.message}</div>`;
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            detailsContainer.innerHTML = '<div class="alert alert-danger">An error occurred while fetching license details</div>';
+          });
+      });
+    });
+    
+    // Clear expired licenses functionality
+    const clearExpiredBtn = document.getElementById('clearExpiredBtn');
+    if (clearExpiredBtn) {
+      clearExpiredBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear all expired licenses? This action cannot be undone.')) {
+          fetch('/admin/licenses/clear-expired', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ csrf_token: csrfToken })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert(`${data.count} expired licenses cleared successfully`);
+              window.location.reload();
+            } else {
+              alert('Error: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while clearing expired licenses');
+          });
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

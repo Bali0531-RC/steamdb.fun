@@ -1,0 +1,86 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Dashboard</h1>
+  <span>Welcome, {{ session.get('admin_username') }}</span>
+</div>
+
+<div class="row">
+  <div class="col-md-4 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Support Tickets</h5>
+        <h1 class="display-4">{{ open_tickets if open_tickets else 0 }}</h1>
+        <p class="card-text">Active support tickets</p>
+        <a href="{{ url_for('admin_support_tickets') }}" class="btn btn-primary">View Tickets</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Total Users</h5>
+        <h1 class="display-4">{{ user_count if user_count else 0 }}</h1>
+        <p class="card-text">Registered users</p>
+        <a href="{{ url_for('admin_users') }}" class="btn btn-primary">Manage Users</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Active Licenses</h5>
+        <h1 class="display-4">{{ active_licenses if active_licenses else 0 }}</h1>
+        <p class="card-text">Valid license keys</p>
+        <a href="{{ url_for('admin_licenses') }}" class="btn btn-primary">Manage Licenses</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Support Tickets -->
+<h3 class="mt-4 mb-3">Recent Support Tickets</h3>
+<div class="table-responsive">
+  <table class="table table-dark table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>User</th>
+        <th>Issue Type</th>
+        <th>Created</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if recent_tickets %}
+        {% for ticket in recent_tickets %}
+        <tr>
+          <td>{{ ticket.id }}</td>
+          <td>{{ ticket.username }}</td>
+          <td>{{ ticket.issue_type }}</td>
+          <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>
+            <span class="badge bg-{{ ticket.status }}">
+              {{ ticket.status }}
+            </span>
+          </td>
+          <td>
+            <a href="{{ url_for('admin_ticket_detail', ticket_id=ticket.id) }}" class="btn btn-sm btn-primary">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="6" class="text-center">No recent tickets</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

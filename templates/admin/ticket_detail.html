@@ -1,0 +1,199 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Support Ticket #{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Ticket #{{ ticket.id }}</h1>
+  <a href="{{ url_for('admin_support_tickets') }}" class="btn btn-sm btn-outline-secondary">Back to Tickets</a>
+</div>
+
+<style>
+  .message-bubble {
+    border-radius: 12px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    max-width: 85%;
+    position: relative;
+  }
+  .message-initial {
+    background-color: #2c3035;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
+  .message-user {
+    background-color: #0d6efd;
+    margin-left: auto;
+    text-align: right;
+  }
+  .message-admin {
+    background-color: #444;
+    margin-right: auto;
+  }
+  .message-timestamp {
+    font-size: 0.75rem;
+    margin-top: 5px;
+    color: rgba(255,255,255,0.6);
+    display: flex;
+    justify-content: space-between;
+  }
+  .messages-container {
+    margin-bottom: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 8px;
+  }
+  .sender-info {
+    font-weight: bold;
+  }
+  .message-initial .message-timestamp {
+    justify-content: space-between;
+    text-align: left;
+  }
+  .message-system {
+    background-color: #2a623d;
+    margin-left: auto;
+    margin-right: auto;
+    width: 90%;
+    font-style: italic;
+    border: 1px dashed rgba(255,255,255,0.3);
+  }
+</style>
+
+<div class="row">
+  <!-- Ticket Details -->
+  <div class="col-md-8">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ ticket.issue_type }} Issue</h5>
+        <span class="badge bg-{{ status_classes[ticket.status] }}">{{ ticket.status }}</span>
+      </div>
+      <div class="card-body">
+        <!-- Replace the messages-container section with this: -->
+        <div class="messages-container">
+          {% if messages %}
+            {% for message in messages %}
+              {% if message.type == 'initial' %}
+                <div class="message-bubble message-initial">
+                  <p>{{ message.text }}</p>
+                  <div class="message-timestamp">
+                    <span class="sender-info">{{ ticket.username }}</span>
+                    <span>User • {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                  </div>
+                </div>
+              {% elif message.type == 'user_reply' %}
+                <div class="message-bubble message-user">
+                  <p>{{ message.text }}</p>
+                  <div class="message-timestamp">
+                    <span class="sender-info">{{ ticket.username }}</span>
+                    <span>User • {{ message.timestamp }}</span>
+                  </div>
+                </div>
+              {% elif message.type == 'admin_reply' %}
+                <div class="message-bubble message-admin">
+                  <p>{{ message.text }}</p>
+                  <div class="message-timestamp">
+                    <span class="sender-info">{{ message.admin_name }}</span>
+                    <span>{{ message.admin_role }} • {{ message.timestamp }}</span>
+                  </div>
+                </div>
+              {% elif message.type == 'system_message' %}
+                <div class="message-bubble message-system">
+                  <p>{{ message.text }}</p>
+                  <div class="message-timestamp">
+                    <span class="sender-info">System</span>
+                    <span>{{ message.timestamp }}</span>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <div class="alert alert-info">No messages found for this ticket.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Response Form -->
+    <div class="card">
+      <div class="card-header">
+        <h5>Admin Reply</h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('admin_ticket_detail', ticket_id=ticket.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <textarea class="form-control bg-dark text-light border-secondary" id="admin_reply" name="admin_reply" rows="4" placeholder="Type your reply here..."></textarea>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <button type="submit" class="btn btn-primary">Send Reply</button>
+            <div>
+              <label class="me-2">Status:</label>
+              <select class="form-select form-select-sm d-inline-block w-auto bg-dark text-light border-secondary" id="status" name="status">
+                <option value="open" {% if ticket.status == 'open' %}selected{% endif %}>Open</option>
+                <option value="in_progress" {% if ticket.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="closed" {% if ticket.status == 'closed' %}selected{% endif %}>Closed</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Details and Actions -->
+  <div class="col-md-4">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5>User Details</h5>
+      </div>
+      <div class="card-body">
+        <p><strong>Username:</strong> {{ ticket.username }}</p>
+        <p><strong>License Key:</strong> {{ ticket.licensekey if ticket.licensekey else 'No license' }}</p>
+        <a href="{{ url_for('admin_view_user', user_id=ticket.user_id) }}" class="btn btn-sm btn-primary">View User Profile</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="#" class="btn btn-outline-primary">Send Email Response</a>
+          <form action="{{ url_for('admin_generate_license_for_ticket', ticket_id=ticket.id) }}" method="POST" class="d-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-info">Generate New License</button>
+          </form>
+          <hr>
+          <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteTicketModal">
+            Delete Ticket
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Ticket Modal -->
+<div class="modal fade" id="deleteTicketModal" tabindex="-1" aria-labelledby="deleteTicketModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteTicketModalLabel">Confirm Delete</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete this ticket? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <a href="{{ url_for('admin_delete_ticket', ticket_id=ticket.id) }}" class="btn btn-danger">Delete Ticket</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

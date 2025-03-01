@@ -1,0 +1,534 @@
+{% extends "admin/base.html" %}
+
+{% block title %}User Details - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2"><i class="bi bi-person-circle me-2"></i>User Details: {{ user.username }}</h1>
+  <div>
+    <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-secondary me-2">
+      <i class="bi bi-arrow-left me-1"></i> Back to Users
+    </a>
+    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
+      <i class="bi bi-trash me-1"></i> Delete User
+    </button>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+{% if success %}
+<div class="alert alert-success">{{ success }}</div>
+{% endif %}
+
+<div class="row">
+  <!-- Left Column: User Information and Stats -->
+  <div class="col-md-5">
+    <!-- User Information Card -->
+    <div class="card bg-dark text-light mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-person-badge me-2"></i>User Information</h5>
+        <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-sm btn-warning">
+          <i class="bi bi-pencil me-1"></i> Edit User
+        </a>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-center mb-4">
+          <div class="text-center">
+            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; margin: 0 auto;">
+              <i class="bi bi-person-fill" style="font-size: 2.5rem;"></i>
+            </div>
+            <h4 class="mt-2 mb-0">{{ user.username }}</h4>
+            <span class="badge {% if user.is_admin %}bg-primary{% else %}bg-secondary{% endif %} mt-1">
+              {{ 'Administrator' if user.is_admin else 'User' }}
+            </span>
+          </div>
+        </div>
+
+        <table class="table table-dark table-striped">
+          <tr>
+            <th style="width: 40%"><i class="bi bi-hash me-1"></i>User ID:</th>
+            <td>{{ user.id }}</td>
+          </tr>
+          <tr>
+            <th><i class="bi bi-calendar3 me-1"></i>Registration Date:</th>
+            <td>{{ user.registration_date.strftime('%Y-%m-%d %H:%M') if user.registration_date else 'N/A' }}</td>
+          </tr>
+          <tr>
+            <th><i class="bi bi-clock-history me-1"></i>Last Login:</th>
+            <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}</td>
+          </tr>
+          <tr>
+            <th><i class="bi bi-envelope me-1"></i>Email:</th>
+            <td>{{ user.email if user.email else 'Not provided' }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Password Reset Card -->
+    <div class="card bg-dark text-light mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-key me-2"></i>Password Management</h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('admin_reset_password', user_id=user.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label for="new_password" class="form-label">New Password</label>
+            <div class="input-group">
+              <input type="password" class="form-control bg-dark text-light border-secondary" 
+                     id="new_password" name="new_password" required minlength="8">
+              <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+            <small class="form-text text-muted">At least 8 characters long</small>
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="requireReset" name="require_reset">
+            <label class="form-check-label" for="requireReset">Require password change on next login</label>
+          </div>
+          <button type="submit" class="btn btn-warning">Reset Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Right Column: License Information and Support Tickets -->
+  <div class="col-md-7">
+    <!-- License Information Card -->
+    <div class="card bg-dark text-light mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-key-fill me-2"></i>License Information</h5>
+        <div class="btn-group">
+          <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#assignLicenseModal">
+            <i class="bi bi-key me-1"></i> Assign License
+          </button>
+          {% if user.licensekey %}
+          <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#resetHWIDModal">
+            <i class="bi bi-arrow-repeat me-1"></i> Reset HWID
+          </button>
+          <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#revokeLicenseModal">
+            <i class="bi bi-x-circle me-1"></i> Revoke
+          </button>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body">
+        {% if user.licensekey %}
+          <div class="license-card p-3 mb-3 border-start border-4 {{ 'border-success' if user.active else 'border-warning' if user.expires_at and user.expires_at < now else 'border-danger' }}">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">
+                <i class="bi bi-key me-1"></i> License Key
+              </h5>
+              {% if user.active and (not user.expires_at or user.expires_at > now) %}
+                <span class="badge bg-success">Active</span>
+              {% elif user.active and user.expires_at and user.expires_at < now %}
+                <span class="badge bg-warning">Expired</span>
+              {% else %}
+                <span class="badge bg-danger">Inactive</span>
+              {% endif %}
+            </div>
+            
+            <div class="input-group mb-3">
+              <input type="text" class="form-control bg-dark text-light" value="{{ user.licensekey }}" readonly id="licenseKeyDisplay">
+              <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('licenseKeyDisplay')">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6 mb-2">
+                <small class="d-block text-muted">Product</small>
+                <span>{{ user.product }}</span>
+              </div>
+              <div class="col-md-6 mb-2">
+                <small class="d-block text-muted">Activated On</small>
+                <span>{{ user.license_created_at.strftime('%Y-%m-%d') if user.license_created_at else 'N/A' }}</span>
+              </div>
+              <div class="col-md-6 mb-2">
+                <small class="d-block text-muted">Type</small>
+                <span>{{ "Permanent" if not user.expires_at else "Temporary" }}</span>
+              </div>
+              <div class="col-md-6 mb-2">
+                <small class="d-block text-muted">Last Used</small>
+                <span>{{ user.last_used.strftime('%Y-%m-%d %H:%M') if user.last_used else 'Never' }}</span>
+              </div>
+              
+              {% if user.expires_at %}
+              <div class="col-md-12 mb-2">
+                <small class="d-block text-muted">Expiration</small>
+                <span>
+                  {{ user.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                  {% if user.expires_at > now %}
+                    {% set time_delta = user.expires_at - now %}
+                    {% set days = time_delta.days %}
+                    {% set hours = (time_delta.seconds // 3600) %}
+                    
+                    <span class="badge bg-info">
+                      {{ days }} day{{ 's' if days != 1 }} remaining
+                    </span>
+                  {% else %}
+                    <span class="badge bg-warning">Expired</span>
+                  {% endif %}
+                </span>
+              </div>
+            {% endif %}
+            </div>
+            
+            <div class="mb-3">
+              <small class="d-block text-muted">Hardware ID Usage</small>
+              <div class="progress bg-dark mb-2">
+                {% set percentage = 0 %}
+                {% if user.hwid_limit and user.hwid_limit > 0 %}
+                  {% set percentage = (hwids|length / user.hwid_limit * 100)|int %}
+                {% elif not user.hwid_limit %}
+                  {% set percentage = 100 %}
+                {% endif %}
+                
+                <div class="progress-bar {{ 'bg-success' if (user.hwid_limit and hwids|length < user.hwid_limit) else 'bg-danger' }}" 
+                     role="progressbar" 
+                     style="width: {{ percentage }}%;" 
+                     aria-valuenow="{{ hwids|length }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="{{ user.hwid_limit|default(0) }}">
+                  {{ hwids|length }} / {{ user.hwid_limit|default('∞') }}
+                </div>
+              </div>
+            </div>
+            
+            {% if hwids %}
+            <div class="mb-3">
+              <small class="d-block text-muted mb-2">Registered Devices</small>
+              <div class="table-responsive">
+                <table class="table table-sm table-dark table-striped">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>First Used</th>
+                      <th>Last Used</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for hwid in hwids %}
+                    <tr>
+                      <td>{{ loop.index }}</td>
+                      <td>{{ hwid.first_used.strftime('%Y-%m-%d %H:%M') }}</td>
+                      <td>{{ hwid.last_used.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="alert alert-secondary">
+            <i class="bi bi-exclamation-triangle me-2"></i> This user doesn't have a license key.
+            <button class="btn btn-sm btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#assignLicenseModal">
+              Assign License
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Support Tickets Card -->
+    <div class="card bg-dark text-light">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-ticket-perforated me-2"></i>Support Tickets</h5>
+        <span class="badge bg-primary">{{ tickets|length }} ticket{{ 's' if tickets|length != 1 }}</span>
+      </div>
+      <div class="card-body">
+        {% if tickets %}
+          <div class="list-group bg-dark">
+            {% for ticket in tickets %}
+              <a href="{{ url_for('admin_ticket_detail', ticket_id=ticket.id) }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">Ticket #{{ ticket.id }}: {{ ticket.issue_type }}</h6>
+                  <span class="badge bg-{{ ticket.status }}">{{ ticket.status }}</span>
+                </div>
+                <p class="mb-1 text-truncate">{{ ticket.description[:100] }}{% if ticket.description|length > 100 %}...{% endif %}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                  <small class="text-muted"><i class="bi bi-calendar-event me-1"></i> {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                  {% if ticket.updated_at and ticket.updated_at != ticket.created_at %}
+                  <small class="text-muted"><i class="bi bi-clock-history me-1"></i> Updated: {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                  {% endif %}
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted">No support tickets found for this user.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Add this card in the admin view -->
+<div class="card bg-dark text-light mt-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>User Activity Log</h5>
+  </div>
+  <div class="card-body">
+      <div class="table-responsive">
+          <table class="table table-sm table-dark table-striped">
+              <thead>
+                  <tr>
+                      <th>Date & Time</th>
+                      <th>Activity</th>
+                      <th>Status</th>
+                      <th>IP Address</th>
+                      <th>Details</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for log in activity_logs %}
+                  <tr>
+                      <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                      <td>
+                          {% if log.activity_type == 'login' %}
+                              <i class="bi bi-box-arrow-in-right text-primary me-1"></i> Login
+                          {% elif log.activity_type == 'logout' %}
+                              <i class="bi bi-box-arrow-right text-secondary me-1"></i> Logout
+                          {% elif log.activity_type == 'registration' %}
+                              <i class="bi bi-person-plus text-success me-1"></i> Registration
+                          {% elif log.activity_type == 'password_change' %}
+                              <i class="bi bi-key text-warning me-1"></i> Password Change
+                          {% elif log.activity_type == 'username_change' %}
+                              <i class="bi bi-pencil text-info me-1"></i> Username Change
+                          {% elif log.activity_type == 'license_activation' %}
+                              <i class="bi bi-award text-primary me-1"></i> License Activation
+                          {% elif log.activity_type == 'hwid_reset' %}
+                              <i class="bi bi-arrow-repeat text-warning me-1"></i> HWID Reset
+                          {% else %}
+                              <i class="bi bi-activity me-1"></i> {{ log.activity_type|title }}
+                          {% endif %}
+                      </td>
+                      <td>
+                          {% if log.status == 'success' %}
+                              <span class="badge bg-success">Success</span>
+                          {% elif log.status == 'failed' %}
+                              <span class="badge bg-danger">Failed</span>
+                          {% elif log.status == 'blocked' %}
+                              <span class="badge bg-warning">Blocked</span>
+                          {% else %}
+                              <span class="badge bg-secondary">{{ log.status|title }}</span>
+                          {% endif %}
+                      </td>
+                      <td>
+                          <code>{{ log.ip_address }}</code>
+                          <a href="https://whatismyipaddress.com/ip/{{ log.ip_address }}" target="_blank" class="ms-2 text-info">
+                              <i class="bi bi-info-circle"></i>
+                          </a>
+                      </td>
+                      <td>{{ log.details or 'N/A' }}</td>
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+      </div>
+  </div>
+</div>
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteUserModalLabel">Confirm User Deletion</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete user <strong>{{ user.username }}</strong>?</p>
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          This action cannot be undone. All user data, including license information and support tickets, will be permanently deleted.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">Delete User</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Assign License Modal -->
+<div class="modal fade" id="assignLicenseModal" tabindex="-1" aria-labelledby="assignLicenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assignLicenseModalLabel">Assign License to {{ user.username }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form action="{{ url_for('admin_assign_license', user_id=user.id) }}" method="POST" id="assignLicenseForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          {% if user.licensekey %}
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            This user already has a license key. Assigning a new license will replace the current one.
+          </div>
+          {% endif %}
+          
+          <div class="mb-3">
+            <label for="license_method" class="form-label">Assignment Method</label>
+            <select class="form-select bg-dark text-light border-secondary" id="license_method" name="license_method" required>
+              <option value="existing">Use Existing License</option>
+              <option value="generate">Generate New License</option>
+            </select>
+          </div>
+          
+          <div id="existingLicenseFields">
+            <div class="mb-3">
+              <label for="licensekey" class="form-label">License Key</label>
+              <input type="text" class="form-control bg-dark text-light border-secondary" id="licensekey" name="licensekey" placeholder="Enter license key">
+            </div>
+          </div>
+          
+          <div id="generateLicenseFields" style="display:none;">
+            <div class="mb-3">
+              <label for="license_type" class="form-label">License Type</label>
+              <select class="form-select bg-dark text-light border-secondary" id="license_type" name="license_type">
+                <option value="permanent">Permanent</option>
+                <option value="temporary">Temporary</option>
+              </select>
+            </div>
+            
+            <div class="mb-3" id="daysValidField" style="display:none;">
+              <label for="days_valid" class="form-label">Valid for (days)</label>
+              <input type="number" class="form-control bg-dark text-light border-secondary" id="days_valid" name="days_valid" value="30" min="1">
+            </div>
+            
+            <div class="mb-3">
+              <label for="hwid_limit" class="form-label">Hardware ID Limit</label>
+              <input type="number" class="form-control bg-dark text-light border-secondary" id="hwid_limit" name="hwid_limit" value="2" min="1" max="10">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" form="assignLicenseForm" class="btn btn-primary">Assign License</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset HWID Modal -->
+<div class="modal fade" id="resetHWIDModal" tabindex="-1" aria-labelledby="resetHWIDModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="resetHWIDModalLabel">Reset Hardware IDs</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to reset all hardware IDs for {{ user.username }}'s license?</p>
+        <div class="alert alert-warning">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          The user will need to re-authenticate on all their devices.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form action="{{ url_for('admin_reset_user_hwid', user_id=user.id) }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-warning">Reset Hardware IDs</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Revoke License Modal -->
+<div class="modal fade" id="revokeLicenseModal" tabindex="-1" aria-labelledby="revokeLicenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="revokeLicenseModalLabel">Revoke License</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to revoke {{ user.username }}'s license?</p>
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          The user will lose access to the application until a new license is assigned.
+        </div>
+        <div class="mb-3 form-check">
+          <input type="checkbox" class="form-check-input" id="deactivateLicense" name="deactivate_license" form="revokeLicenseForm">
+          <label class="form-check-label" for="deactivateLicense">Deactivate this license key</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form action="{{ url_for('admin_revoke_user_license', user_id=user.id) }}" method="POST" id="revokeLicenseForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">Revoke License</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Toggle password visibility
+  document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordField = document.getElementById('new_password');
+    const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+    passwordField.setAttribute('type', type);
+    this.querySelector('i').className = type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+  });
+  
+  // Copy license key to clipboard
+  function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    document.execCommand('copy');
+    
+    // Show a temporary success message
+    const button = document.querySelector(`#${elementId} + button`);
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-check2"></i>';
+    button.classList.add('btn-success');
+    button.classList.remove('btn-outline-secondary');
+    
+    setTimeout(() => {
+      button.innerHTML = originalHTML;
+      button.classList.remove('btn-success');
+      button.classList.add('btn-outline-secondary');
+    }, 1500);
+  }
+  
+  // Handle license assignment method toggle
+  document.getElementById('license_method').addEventListener('change', function() {
+    const isExisting = this.value === 'existing';
+    document.getElementById('existingLicenseFields').style.display = isExisting ? 'block' : 'none';
+    document.getElementById('generateLicenseFields').style.display = isExisting ? 'none' : 'block';
+    
+    // Clear fields when switching
+    if (isExisting) {
+      document.getElementById('licensekey').required = true;
+      document.getElementById('license_type').required = false;
+    } else {
+      document.getElementById('licensekey').required = false;
+      document.getElementById('license_type').required = true;
+    }
+  });
+  
+  // Handle license type toggle for days valid field
+  document.getElementById('license_type').addEventListener('change', function() {
+    const isTemporary = this.value === 'temporary';
+    document.getElementById('daysValidField').style.display = isTemporary ? 'block' : 'none';
+    document.getElementById('days_valid').required = isTemporary;
+  });
+</script>
+{% endblock %}
